@@ -76,6 +76,10 @@ MangaMeeya_ByJ/
 - 현재 페이지 정보 실시간 표시
 - 첫/마지막 페이지 경계 처리
 
+## 기여하기
+
+버그 리포트, 기능 제안, 풀 리퀘스트는 언제든 환영합니다!
+
 ## 라이선스
 
-MIT License
+MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
