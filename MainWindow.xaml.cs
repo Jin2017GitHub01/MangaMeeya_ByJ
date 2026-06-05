@@ -35,6 +35,17 @@ namespace MangaMeeya_by_Jin
             this.MouseDown += MainWindow_MouseDown;
             this.MouseUp += MainWindow_MouseUp;
             this.MouseWheel += MainWindow_MouseWheel;
+            this.Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // 저장된 ZIP 파일이 있으면 자동으로 로드
+            AppSettings settings = AppSettings.Load();
+            if (!string.IsNullOrEmpty(settings.LastZipFilePath) && File.Exists(settings.LastZipFilePath))
+            {
+                LoadZipFile(settings.LastZipFilePath);
+            }
         }
 
         private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -159,32 +170,30 @@ namespace MangaMeeya_by_Jin
                 tempExtractPath = Path.Combine(Path.GetTempPath(), "MangaMeeya_" + Guid.NewGuid().ToString());
                 Directory.CreateDirectory(tempExtractPath);
 
-                // ZIP 파일 추출
+                // ZIP 파일 추출 (모든 이미지를 한 폴더에 평탄화)
                 using (ZipFile zipFile = new ZipFile(zipPath))
                 {
+                    int fileCounter = 0;
                     foreach (ZipEntry entry in zipFile)
                     {
-                        if (!entry.IsDirectory)
+                        if (!entry.IsDirectory && IsImageFile(entry.Name))
                         {
-                            string extractPath = Path.Combine(tempExtractPath, entry.Name);
-                            string directory = Path.GetDirectoryName(extractPath);
-                            
-                            if (!Directory.Exists(directory))
-                            {
-                                Directory.CreateDirectory(directory);
-                            }
+                            // 파일명을 번호로 변경하여 경로 문제 해결
+                            string fileExtension = Path.GetExtension(entry.Name);
+                            string extractPath = Path.Combine(tempExtractPath, $"{fileCounter:D4}{fileExtension}");
                             
                             using (Stream zipStream = zipFile.GetInputStream(entry))
                             using (FileStream fileStream = new FileStream(extractPath, FileMode.Create))
                             {
                                 zipStream.CopyTo(fileStream);
                             }
+                            fileCounter++;
                         }
                     }
                 }
 
                 // 이미지 파일 검색
-                imageFiles = Directory.GetFiles(tempExtractPath, "*.*", SearchOption.AllDirectories)
+                imageFiles = Directory.GetFiles(tempExtractPath, "*.*", SearchOption.TopDirectoryOnly)
                     .Where(f => IsImageFile(f))
                     .OrderBy(f => f)
                     .ToList();
@@ -195,13 +204,13 @@ namespace MangaMeeya_by_Jin
                 {
                     DisplayImage(0);
                     UpdateUI();
-                    MessageBox.Show($"{imageFiles.Count}개의 이미지를 로드했습니다.", "성공", 
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    // MessageBox.Show($"{imageFiles.Count}개의 이미지를 로드했습니다.", "성공", 
+                    //     MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
-                    MessageBox.Show("ZIP 파일에 이미지가 없습니다.", "경고", 
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // MessageBox.Show("ZIP 파일에 이미지가 없습니다.", "경고", 
+                    //     MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
@@ -324,6 +333,17 @@ namespace MangaMeeya_by_Jin
 
         protected override void OnClosed(EventArgs e)
         {
+            // 현재 ZIP 파일 경로 저장
+            if (!string.IsNullOrEmpty(currentZipPath))
+            {
+                AppSettings settings = new AppSettings
+                {
+                    LastZipFilePath = currentZipPath,
+                    LastModified = DateTime.Now
+                };
+                settings.Save();
+            }
+
             // 임시 폴더 정리
             if (!string.IsNullOrEmpty(tempExtractPath) && Directory.Exists(tempExtractPath))
             {

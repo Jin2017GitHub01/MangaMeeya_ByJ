@@ -1,0 +1,72 @@
+<Window x:Class="MangaMeeya_by_Jin.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        Width="600" Height="400"
+        Topmost="True"
+        ShowInTaskbar="False">
+    <Grid Background="Transparent">
+        <!-- 배경 그라데이션 -->
+        <Rectangle>
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#FF1a1a2e" Offset="0"/>
+                    <GradientStop Color="#FF16213e" Offset="1"/>
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
+        <!-- 중앙 콘텐츠 -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <!-- 타이틀 -->
+            <TextBlock Text="MangaMeeya" 
+                       FontSize="72" 
+                       FontWeight="Bold"
+                       Foreground="#FFFFFF"
+                       TextAlignment="Center"
+                       FontFamily="Arial"
+                       Margin="0,0,0,10">
+                <TextBlock.Effect>
+                    <DropShadowEffect BlurRadius="10" Opacity="0.5"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- 서브타이틀 -->
+            <TextBlock Text="by Jin" 
+                       FontSize="28" 
+                       Foreground="#FF00BFFF"
+                       TextAlignment="Center"
+                       FontFamily="Arial"
+                       Margin="0,0,0,20">
+                <TextBlock.Effect>
+                    <DropShadowEffect BlurRadius="10" Opacity="0.5"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- 한글 부제목 -->
+            <TextBlock Text="만화 ZIP 뷰어" 
+                       FontSize="20" 
+                       Foreground="#FFE0E0E0"
+                       TextAlignment="Center"
+                       FontFamily="Segoe UI"
+                       Margin="0,0,0,30">
+                <TextBlock.Effect>
+                    <DropShadowEffect BlurRadius="8" Opacity="0.4"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- 로딩 진행바 -->
+            <ProgressBar Height="4" 
+                         Foreground="#FF00BFFF"
+                         Background="Transparent"
+                         Width="200"
+                         x:Name="LoadingBar"/>
+        </StackPanel>
+    </Grid>
+</Window>
