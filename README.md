@@ -1,4 +1,4 @@
-# MangaMeeya - 만화 ZIP 뷰어
+# MangaMeeya by Jin - 만화 ZIP 뷰어
 
 WPF(Windows Presentation Foundation)로 만든 만화 ZIP 파일 뷰어 애플리케이션입니다.
 

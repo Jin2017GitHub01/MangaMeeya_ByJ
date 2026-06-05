@@ -8,7 +8,7 @@ using System.Windows.Media.Imaging;
 using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Win32;
 
-namespace MangaMeeya
+namespace MangaMeeya_by_Jin
 {
     public partial class MainWindow : Window
     {

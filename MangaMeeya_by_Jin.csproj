@@ -4,8 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <AssemblyName>MangaMeeya</AssemblyName>
-    <RootNamespace>MangaMeeya</RootNamespace>
+    <AssemblyName>MangaMeeya_by_Jin</AssemblyName>
+    <RootNamespace>MangaMeeya_by_Jin</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
