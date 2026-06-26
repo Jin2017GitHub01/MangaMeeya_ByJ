@@ -50,7 +50,8 @@
             </TextBlock>
 
             <!-- 한글 부제목 -->
-            <TextBlock Text="만화 ZIP 뷰어" 
+            <TextBlock x:Name="SubTitleLabel"
+                       Text="만화 ZIP 뷰어" 
                        FontSize="20" 
                        Foreground="#FFE0E0E0"
                        TextAlignment="Center"

@@ -14,6 +14,7 @@ namespace MangaMeeya_by_Jin
 
         public string LastZipFilePath { get; set; }
         public DateTime LastModified { get; set; }
+        public string Language { get; set; } = "ko";
 
         public static AppSettings Load()
         {

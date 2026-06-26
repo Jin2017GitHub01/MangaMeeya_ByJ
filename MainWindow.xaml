@@ -109,17 +109,61 @@
                         BorderThickness="2"
                         BorderBrush="#FF6A1B9A"
                         Padding="5"/>
+
+                <!-- 언어 선택 ComboBox -->
+                <ComboBox x:Name="LanguageComboBox"
+                          Width="100"
+                          Height="45"
+                          Margin="5"
+                          FontSize="14"
+                          FontWeight="Bold"
+                          VerticalContentAlignment="Center"
+                          HorizontalContentAlignment="Center"
+                          SelectionChanged="LanguageComboBox_SelectionChanged">
+                    <ComboBoxItem Content="한국어" Tag="ko"/>
+                    <ComboBoxItem Content="English" Tag="en"/>
+                    <ComboBoxItem Content="中文" Tag="zh"/>
+                    <ComboBoxItem Content="日本語" Tag="ja"/>
+                </ComboBox>
             </StackPanel>
 
-            <!-- 두 번째 줄: 파일명 표시 -->
-            <TextBlock x:Name="FileLabel" 
-                       Grid.Row="1"
-                       Text="파일: 없음" 
-                       Margin="10"
-                       VerticalAlignment="Center"
-                       HorizontalAlignment="Center"
-                       FontSize="12"
-                       Foreground="#FF333333"/>
+            <!-- 두 번째 줄: 파일명 및 제스처 안내 -->
+            <Grid Grid.Row="1" Margin="20,0,20,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="FileLabel" 
+                           Grid.Column="0"
+                           Text="파일: 없음" 
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
+                           FontSize="12"
+                           Foreground="#FF333333"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="0,0,10,0"/>
+                <StackPanel Grid.Column="1" 
+                            VerticalAlignment="Center" 
+                            HorizontalAlignment="Right">
+                    <TextBlock x:Name="GestureWheelText"
+                               Text="🖱 휠/좌우 드래그: 이전/다음 페이지" 
+                               FontSize="11" 
+                               Foreground="#FF666666" 
+                               TextAlignment="Right"/>
+                    <TextBlock x:Name="GestureUpText"
+                               Text="🖱 위로 드래그: 전체화면 토글" 
+                               FontSize="11" 
+                               Foreground="#FF666666" 
+                               TextAlignment="Right" 
+                               Margin="0,2,0,0"/>
+                    <TextBlock x:Name="GestureDownText"
+                               Text="🖱 아래로 드래그: 전체화면 해제" 
+                               FontSize="11" 
+                               Foreground="#FF666666" 
+                               TextAlignment="Right" 
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

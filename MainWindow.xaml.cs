@@ -41,8 +41,23 @@ namespace MangaMeeya_by_Jin
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // 저장된 ZIP 파일이 있으면 자동으로 로드
             AppSettings settings = AppSettings.Load();
+
+            // 저장된 설정에서 언어 선택
+            string savedLang = settings.Language ?? "ko";
+            LanguageManager.CurrentLanguage = savedLang;
+            foreach (ComboBoxItem item in LanguageComboBox.Items)
+            {
+                if (item.Tag?.ToString() == savedLang)
+                {
+                    LanguageComboBox.SelectedItem = item;
+                    break;
+                }
+            }
+
+            ApplyLanguage();
+
+            // 저장된 ZIP 파일이 있으면 자동으로 로드
             if (!string.IsNullOrEmpty(settings.LastZipFilePath) && File.Exists(settings.LastZipFilePath))
             {
                 LoadZipFile(settings.LastZipFilePath);
@@ -97,11 +112,8 @@ namespace MangaMeeya_by_Jin
             {
                 if (verticalDrag < 0)
                 {
-                    // 위로 드래그 → 전체화면
-                    if (!isFullscreen)
-                    {
-                        EnterFullscreen();
-                    }
+                    // 위로 드래그 → 전체화면 토글
+                    ToggleFullscreen();
                 }
                 else
                 {
@@ -147,8 +159,8 @@ namespace MangaMeeya_by_Jin
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "ZIP Files (*.zip)|*.zip|All Files (*.*)|*.*",
-                Title = "만화 ZIP 파일 선택"
+                Filter = LanguageManager.GetString("ZipFilter"),
+                Title = LanguageManager.GetString("OpenTitle")
             };
 
             if (openFileDialog.ShowDialog() == true)
@@ -216,7 +228,7 @@ namespace MangaMeeya_by_Jin
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"오류 발생: {ex.Message}", "에러", 
+                MessageBox.Show($"{LanguageManager.GetString("ErrorPrefix")}{ex.Message}", LanguageManager.GetString("ErrorTitle"), 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -246,15 +258,27 @@ namespace MangaMeeya_by_Jin
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"이미지 로드 실패: {ex.Message}", "에러", 
+                MessageBox.Show($"{LanguageManager.GetString("ImageLoadFailed")}{ex.Message}", LanguageManager.GetString("ErrorTitle"), 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void UpdateUI()
         {
-            PageLabel.Text = $"{currentImageIndex + 1}/{imageFiles.Count}";
-            FileLabel.Text = $"파일: {Path.GetFileName(currentZipPath)}";
+            if (PageLabel != null)
+                PageLabel.Text = $"{currentImageIndex + 1}/{imageFiles.Count}";
+            
+            if (FileLabel != null)
+            {
+                if (string.IsNullOrEmpty(currentZipPath))
+                {
+                    FileLabel.Text = LanguageManager.GetString("FileNone");
+                }
+                else
+                {
+                    FileLabel.Text = $"{LanguageManager.GetString("FilePrefix")}{Path.GetFileName(currentZipPath)}";
+                }
+            }
         }
 
         private void PrevButton_Click(object sender, RoutedEventArgs e)
@@ -311,7 +335,7 @@ namespace MangaMeeya_by_Jin
             (this.Content as Grid).RowDefinitions[1].Height = new GridLength(0);
             
             // 버튼 텍스트 변경
-            FullscreenButton.Content = "🖥 종료";
+            FullscreenButton.Content = LanguageManager.GetString("FullscreenExit");
         }
 
         private void ExitFullscreen()
@@ -330,7 +354,44 @@ namespace MangaMeeya_by_Jin
             (this.Content as Grid).RowDefinitions[1].Height = previousBottomPanelHeight;
             
             // 버튼 텍스트 변경
-            FullscreenButton.Content = "🖥 전체화면";
+            FullscreenButton.Content = LanguageManager.GetString("FullscreenEnter");
+        }
+
+        private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (LanguageComboBox.SelectedItem is ComboBoxItem selectedItem)
+            {
+                string tag = selectedItem.Tag?.ToString() ?? "ko";
+                LanguageManager.CurrentLanguage = tag;
+                
+                // UI 언어 적용
+                ApplyLanguage();
+                
+                // 설정 저장
+                AppSettings settings = AppSettings.Load();
+                settings.Language = tag;
+                settings.Save();
+            }
+        }
+
+        private void ApplyLanguage()
+        {
+            this.Title = LanguageManager.GetString("Title");
+            OpenButton.Content = LanguageManager.GetString("OpenButton");
+            PrevButton.Content = LanguageManager.GetString("PrevButton");
+            NextButton.Content = LanguageManager.GetString("NextButton");
+            FullscreenButton.Content = isFullscreen ? LanguageManager.GetString("FullscreenExit") : LanguageManager.GetString("FullscreenEnter");
+            
+            // 파일 정보 표시 업데이트
+            UpdateUI();
+            
+            // 마우스 제스처 설명서 번역
+            if (GestureWheelText != null)
+                GestureWheelText.Text = LanguageManager.GetString("GestureWheel");
+            if (GestureUpText != null)
+                GestureUpText.Text = LanguageManager.GetString("GestureUp");
+            if (GestureDownText != null)
+                GestureDownText.Text = LanguageManager.GetString("GestureDown");
         }
 
         protected override void OnClosed(EventArgs e)
