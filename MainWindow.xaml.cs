@@ -23,6 +23,7 @@ namespace MangaMeeya_by_Jin
         private double previousWidth;
         private double previousTop;
         private double previousLeft;
+        private GridLength previousBottomPanelHeight;
         
         // 마우스 제스처용 변수
         private System.Windows.Point mouseDownPosition;
@@ -300,6 +301,7 @@ namespace MangaMeeya_by_Jin
             previousWidth = this.Width;
             previousTop = this.Top;
             previousLeft = this.Left;
+            previousBottomPanelHeight = (this.Content as Grid).RowDefinitions[1].Height;
 
             // 전체화면으로 설정
             this.WindowStyle = WindowStyle.None;
@@ -325,7 +327,7 @@ namespace MangaMeeya_by_Jin
             this.Left = previousLeft;
             
             // 컨트롤 패널 다시 보이기
-            (this.Content as Grid).RowDefinitions[1].Height = new GridLength(70);
+            (this.Content as Grid).RowDefinitions[1].Height = previousBottomPanelHeight;
             
             // 버튼 텍스트 변경
             FullscreenButton.Content = "🖥 전체화면";
