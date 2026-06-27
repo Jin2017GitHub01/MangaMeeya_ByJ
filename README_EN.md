@@ -35,7 +35,7 @@ dotnet run
 
 Or run the executable directly:
 ```bash
-bin/Debug/net6.0-windows/MangaMeeya_by_Jin.exe
+bin/Debug/net8.0-windows/MangaMeeya_by_Jin.exe
 ```
 
 ## How to Use

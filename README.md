@@ -35,7 +35,7 @@ dotnet run
 
 또는 exe 파일을 직접 실행합니다:
 ```bash
-bin/Release/net6.0-windows/MangaMeeya.exe
+bin/Release/net8.0-windows/MangaMeeya.exe
 ```
 
 ## 사용 방법

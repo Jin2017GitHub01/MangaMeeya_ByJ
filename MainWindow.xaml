@@ -126,6 +126,22 @@
                     <ComboBoxItem Content="中文" Tag="zh"/>
                     <ComboBoxItem Content="日本語" Tag="ja"/>
                 </ComboBox>
+
+                <!-- 기록 버튼 -->
+                <Button x:Name="HistoryButton"
+                        Content="📜 기록"
+                        Width="90"
+                        Height="45"
+                        Margin="5"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Click="HistoryButton_Click"
+                        Background="#FFFF9800"
+                        Foreground="White"
+                        Cursor="Hand"
+                        BorderThickness="2"
+                        BorderBrush="#FFE65100"
+                        Padding="5"/>
             </StackPanel>
 
             <!-- 두 번째 줄: 파일명 및 제스처 안내 -->

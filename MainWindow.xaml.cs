@@ -169,7 +169,7 @@ namespace MangaMeeya_by_Jin
             }
         }
 
-        private void LoadZipFile(string zipPath)
+        private void LoadZipFile(string zipPath, int? startPage = null)
         {
             try
             {
@@ -211,11 +211,17 @@ namespace MangaMeeya_by_Jin
                     .OrderBy(f => f)
                     .ToList();
 
-                currentImageIndex = 0;
+                // 시작 페이지 결정
+                int initialPage = 0;
+                if (startPage.HasValue && startPage.Value >= 0 && startPage.Value < imageFiles.Count)
+                {
+                    initialPage = startPage.Value;
+                }
+                currentImageIndex = initialPage;
 
                 if (imageFiles.Count > 0)
                 {
-                    DisplayImage(0);
+                    DisplayImage(initialPage);
                     UpdateUI();
                     // MessageBox.Show($"{imageFiles.Count}개의 이미지를 로드했습니다.", "성공", 
                     //     MessageBoxButton.OK, MessageBoxImage.Information);
@@ -254,6 +260,12 @@ namespace MangaMeeya_by_Jin
 
                 MangaImage.Source = bitmapImage;
                 currentImageIndex = index;
+                // 열람 기록 저장
+                if (!string.IsNullOrEmpty(currentZipPath) && imageFiles.Count > 0)
+                {
+                    HistoryManager.RecordView(currentZipPath, currentImageIndex, imageFiles.Count);
+                }
+
                 UpdateUI();
             }
             catch (Exception ex)
@@ -301,6 +313,26 @@ namespace MangaMeeya_by_Jin
         {
             ToggleFullscreen();
         }
+        private void HistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            HistoryWindow historyWindow = new HistoryWindow();
+            historyWindow.FileOpenRequested += (filePath, pageIndex) =>
+            {
+                // 이미 열려있는 ZIP 파일과 다른 경우에만 로드
+                if (currentZipPath != filePath)
+                {
+                    LoadZipFile(filePath, pageIndex);
+                }
+                else if (pageIndex.HasValue && pageIndex.Value >= 0 && pageIndex.Value < imageFiles.Count)
+                {
+                    // 같은 파일이면 해당 페이지로 이동
+                    DisplayImage(pageIndex.Value);
+                }
+            };
+            historyWindow.ShowDialog();
+        }
+
+
 
         private void ToggleFullscreen()
         {
@@ -382,6 +414,8 @@ namespace MangaMeeya_by_Jin
             NextButton.Content = LanguageManager.GetString("NextButton");
             FullscreenButton.Content = isFullscreen ? LanguageManager.GetString("FullscreenExit") : LanguageManager.GetString("FullscreenEnter");
             
+            HistoryButton.Content = LanguageManager.GetString("HistoryButton");
+
             // 파일 정보 표시 업데이트
             UpdateUI();
             
@@ -405,6 +439,12 @@ namespace MangaMeeya_by_Jin
                     LastModified = DateTime.Now
                 };
                 settings.Save();
+            }
+
+            // 마지막 열람 기록 저장
+            if (!string.IsNullOrEmpty(currentZipPath) && imageFiles.Count > 0)
+            {
+                HistoryManager.RecordView(currentZipPath, currentImageIndex, imageFiles.Count);
             }
 
             // 임시 폴더 정리
