@@ -26,7 +26,7 @@ namespace MangaMeeya_by_Jin
                     var settings = JsonSerializer.Deserialize<AppSettings>(json);
                     
                     // 파일이 여전히 존재하는지 확인
-                    if (!string.IsNullOrEmpty(settings?.LastZipFilePath) && File.Exists(settings.LastZipFilePath))
+                    if (settings != null)
                     {
                         return settings;
                     }

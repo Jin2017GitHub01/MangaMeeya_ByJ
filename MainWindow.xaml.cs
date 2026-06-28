@@ -433,11 +433,9 @@ namespace MangaMeeya_by_Jin
             // 현재 ZIP 파일 경로 저장
             if (!string.IsNullOrEmpty(currentZipPath))
             {
-                AppSettings settings = new AppSettings
-                {
-                    LastZipFilePath = currentZipPath,
-                    LastModified = DateTime.Now
-                };
+                AppSettings settings = AppSettings.Load();
+                settings.LastZipFilePath = currentZipPath;
+                settings.LastModified = DateTime.Now;
                 settings.Save();
             }
 
