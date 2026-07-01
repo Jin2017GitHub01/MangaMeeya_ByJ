@@ -16,8 +16,15 @@
 
         <!-- 이미지 표시 영역 -->
         <Border Grid.Row="0" Background="#FF000000">
-            <Image x:Name="MangaImage" 
-                   Stretch="Uniform"/>
+            <Grid ClipToBounds="True" x:Name="ImageContainer">
+                <!-- 이전 페이지 이미지 (애니메이션용) -->
+                <Image x:Name="MangaImageOld" 
+                       Stretch="Uniform"
+                       Visibility="Collapsed"/>
+                <!-- 현재 페이지 이미지 -->
+                <Image x:Name="MangaImage" 
+                       Stretch="Uniform"/>
+            </Grid>
         </Border>
 
         <!-- 하단 컨트롤 패널 -->
@@ -126,6 +133,22 @@
                     <ComboBoxItem Content="中文" Tag="zh"/>
                     <ComboBoxItem Content="日本語" Tag="ja"/>
                 </ComboBox>
+
+                <!-- 읽기 방향 전환 버튼 -->
+                <Button x:Name="DirectionToggleButton"
+                        Content="📖 방향 전환"
+                        Width="110"
+                        Height="45"
+                        Margin="5"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Click="DirectionToggleButton_Click"
+                        Background="#FF607D8B"
+                        Foreground="White"
+                        Cursor="Hand"
+                        BorderThickness="2"
+                        BorderBrush="#FF455A64"
+                        Padding="5"/>
 
                 <!-- 기록 버튼 -->
                 <Button x:Name="HistoryButton"

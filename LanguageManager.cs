@@ -2,10 +2,20 @@ using System.Collections.Generic;
 
 namespace MangaMeeya_by_Jin
 {
+    /// <summary>
+    /// 다국어 지원을 위한 언어 관리자 정적 클래스입니다.
+    /// 한국어(ko), 영어(en), 중국어(zh), 일본어(ja)를 지원하며,
+    /// 현재 선택된 언어에 따라 UI 문자열을 반환합니다.
+    /// </summary>
     public static class LanguageManager
     {
+        /// <summary>현재 선택된 언어 코드 (기본값: "ko")</summary>
         private static string currentLanguage = "ko";
 
+        /// <summary>
+        /// 현재 언어 코드를 가져오거나 설정합니다.
+        /// 설정 가능한 값: "ko", "en", "zh", "ja"
+        /// </summary>
         public static string CurrentLanguage
         {
             get => currentLanguage;
@@ -18,6 +28,11 @@ namespace MangaMeeya_by_Jin
             }
         }
 
+        /// <summary>
+        /// 각 언어별 번역 문자열을 저장하는 딕셔너리입니다.
+        /// 키: 언어 코드 (ko/en/zh/ja)
+        /// 값: 키-값 쌍의 번역 딕셔너리
+        /// </summary>
         private static readonly Dictionary<string, Dictionary<string, string>> Translations = new Dictionary<string, Dictionary<string, string>>
         {
             {
@@ -59,7 +74,10 @@ namespace MangaMeeya_by_Jin
                     { "TimeAgoHour", "시간 전" },
                     { "TimeAgoDay", "일 전" },
                     { "TimeAgoWeek", "주 전" },
-                    { "TimeAgoMonth", "개월 전" }
+                    { "TimeAgoMonth", "개월 전" },
+                    { "ReadingDirectionLTR", "왼←오 읽기" },
+                    { "ReadingDirectionRTL", "오→왼 읽기" },
+                    { "DirectionToggle", "📖 방향 전환" }
                 }
             },
             {
@@ -101,7 +119,10 @@ namespace MangaMeeya_by_Jin
                     { "TimeAgoHour", "hour ago" },
                     { "TimeAgoDay", "day ago" },
                     { "TimeAgoWeek", "week ago" },
-                    { "TimeAgoMonth", "month ago" }
+                    { "TimeAgoMonth", "month ago" },
+                    { "ReadingDirectionLTR", "← LTR Reading" },
+                    { "ReadingDirectionRTL", "RTL Reading →" },
+                    { "DirectionToggle", "📖 Toggle Direction" }
                 }
             },
             {
@@ -123,7 +144,10 @@ namespace MangaMeeya_by_Jin
                     { "ErrorTitle", "错误" },
                     { "ErrorPrefix", "发生错误: " },
                     { "ImageLoadFailed", "加载图片失败: " },
-                    { "SplashSubtitle", "漫画 ZIP 浏览器" }
+                    { "SplashSubtitle", "漫画 ZIP 浏览器" },
+                    { "ReadingDirectionLTR", "← 左→右阅读" },
+                    { "ReadingDirectionRTL", "右→左阅读 →" },
+                    { "DirectionToggle", "📖 切换方向" }
                 }
             },
             {
@@ -145,11 +169,21 @@ namespace MangaMeeya_by_Jin
                     { "ErrorTitle", "エラー" },
                     { "ErrorPrefix", "エラーが発生しました: " },
                     { "ImageLoadFailed", "画像の読み込みに失敗しました: " },
-                    { "SplashSubtitle", "漫画 ZIP ビューア" }
+                    { "SplashSubtitle", "漫画 ZIP ビューア" },
+                    { "ReadingDirectionLTR", "← 左→右読み" },
+                    { "ReadingDirectionRTL", "右→左読み →" },
+                    { "DirectionToggle", "📖 方向切替" }
                 }
             }
         };
 
+        /// <summary>
+        /// 현재 언어에 해당하는 번역 문자열을 반환합니다.
+        /// 현재 언어에 해당하는 키가 없으면 영어(en)를 기본값으로 찾고,
+        /// 그래도 없으면 키 문자열을 그대로 반환합니다.
+        /// </summary>
+        /// <param name="key">번역 키</param>
+        /// <returns>번역된 문자열</returns>
         public static string GetString(string key)
         {
             if (Translations.TryGetValue(currentLanguage, out var langDict))

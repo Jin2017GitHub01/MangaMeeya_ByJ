@@ -1,37 +1,44 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
-using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Win32;
+using MangaMeeya_by_Jin.Services;
 
 namespace MangaMeeya_by_Jin
 {
+    /// <summary>
+    /// 메인 윈도우 클래스입니다.
+    /// ZIP 파일에서 이미지를 추출하여 만화를 페이지 단위로 보여주는 뷰어의 핵심 기능을 담당합니다.
+    /// 마우스 제스처, 키보드 단축키, 전체화면 모드, 다국어 지원 등을 제공합니다.
+    /// </summary>
     public partial class MainWindow : Window
     {
-        private List<string> imageFiles = new List<string>();
-        private int currentImageIndex = 0;
-        private string currentZipPath = "";
-        private string tempExtractPath = "";
-        private bool isFullscreen = false;
-        private WindowStyle previousWindowStyle;
-        private WindowState previousWindowState;
-        private double previousHeight;
-        private double previousWidth;
-        private double previousTop;
-        private double previousLeft;
-        private GridLength previousBottomPanelHeight;
-        
-        // 마우스 제스처용 변수
-        private System.Windows.Point mouseDownPosition;
-        private const double GESTURE_THRESHOLD = 50; // 50픽셀 이상 드래그시 인식
+        private readonly ZipFileLoader _zipLoader;
+        private readonly ImageNavigator _navigator;
+        private readonly FullscreenManager _fullscreenManager;
+        private readonly UIManager _uiManager;
+        private string _readingDirection = "LTR"; // "LTR" or "RTL"
 
+        /// <summary>마우스 제스처 인식을 위한 마우스 다운 위치</summary>
+        private System.Windows.Point _mouseDownPosition;
+
+        /// <summary>마우스 제스처 인식 최소 드래그 거리 (50픽셀)</summary>
+        private const double GESTURE_THRESHOLD = 50;
+
+        /// <summary>
+        /// MainWindow 생성자. 서비스들을 초기화하고 이벤트 핸들러를 등록합니다.
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
+
+            _zipLoader = new ZipFileLoader();
+            _navigator = new ImageNavigator(MangaImage, MangaImageOld, _zipLoader);
+            _fullscreenManager = new FullscreenManager(this, (Grid)this.Content);
+            _uiManager = new UIManager(this, PageLabel, FileLabel, GestureWheelText, GestureUpText, GestureDownText);
+
+            _navigator.ImageDisplayed += OnImageDisplayed;
+
             this.PreviewKeyDown += MainWindow_PreviewKeyDown;
             this.MouseDown += MainWindow_MouseDown;
             this.MouseUp += MainWindow_MouseUp;
@@ -39,6 +46,10 @@ namespace MangaMeeya_by_Jin
             this.Loaded += MainWindow_Loaded;
         }
 
+        /// <summary>
+        /// 윈도우가 로드될 때 호출됩니다.
+        /// 저장된 설정(언어, 마지막 ZIP 파일)을 불러와 적용합니다.
+        /// </summary>
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             AppSettings settings = AppSettings.Load();
@@ -55,106 +66,97 @@ namespace MangaMeeya_by_Jin
                 }
             }
 
+            // 저장된 읽기 방향 불러오기
+            _readingDirection = settings.ReadingDirection ?? "LTR";
+            _navigator.ReadingDirection = _readingDirection;
+
             ApplyLanguage();
 
             // 저장된 ZIP 파일이 있으면 자동으로 로드
-            if (!string.IsNullOrEmpty(settings.LastZipFilePath) && File.Exists(settings.LastZipFilePath))
+            if (!string.IsNullOrEmpty(settings.LastZipFilePath) && System.IO.File.Exists(settings.LastZipFilePath))
             {
                 LoadZipFile(settings.LastZipFilePath);
             }
         }
 
+        /// <summary>
+        /// 키보드 키 입력을 처리합니다.
+        /// F/F11: 전체화면 토글, Escape: 전체화면 해제,
+        /// Left: 이전 페이지, Right: 다음 페이지
+        /// </summary>
         private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            // F 키로 전체화면 토글
             if (e.Key == System.Windows.Input.Key.F || e.Key == System.Windows.Input.Key.F11)
             {
                 ToggleFullscreen();
                 e.Handled = true;
             }
-            // Escape 키로 전체화면 해제
-            else if (e.Key == System.Windows.Input.Key.Escape && isFullscreen)
+            else if (e.Key == System.Windows.Input.Key.Escape && _fullscreenManager.IsFullscreen)
             {
                 ExitFullscreen();
                 e.Handled = true;
             }
-            // 왼쪽 화살표로 이전 이미지
             else if (e.Key == System.Windows.Input.Key.Left)
             {
-                PrevButton_Click(null, null);
+                _navigator.GoToPrev();
                 e.Handled = true;
             }
-            // 오른쪽 화살표로 다음 이미지
             else if (e.Key == System.Windows.Input.Key.Right)
             {
-                NextButton_Click(null, null);
+                _navigator.GoToNext();
                 e.Handled = true;
             }
         }
 
+        /// <summary>
+        /// 마우스 버튼을 누를 때 위치를 기록합니다.
+        /// </summary>
         private void MainWindow_MouseDown(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            // 마우스 다운 위치 기록
-            mouseDownPosition = e.GetPosition(this);
+            _mouseDownPosition = e.GetPosition(this);
         }
 
+        /// <summary>
+        /// 마우스 버튼을 뗄 때 드래그 제스처를 인식합니다.
+        /// </summary>
         private void MainWindow_MouseUp(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            // 마우스 업 위치 가져오기
             System.Windows.Point mouseUpPosition = e.GetPosition(this);
-            
-            // 수평 및 수직 이동 거리 계산
-            double horizontalDrag = mouseUpPosition.X - mouseDownPosition.X;
-            double verticalDrag = mouseUpPosition.Y - mouseDownPosition.Y;
-            
-            // 수직 이동이 수평 이동보다 큰 경우 (세로 제스처 우선)
+
+            double horizontalDrag = mouseUpPosition.X - _mouseDownPosition.X;
+            double verticalDrag = mouseUpPosition.Y - _mouseDownPosition.Y;
+
             if (Math.Abs(verticalDrag) > Math.Abs(horizontalDrag) && Math.Abs(verticalDrag) > GESTURE_THRESHOLD)
             {
                 if (verticalDrag < 0)
-                {
-                    // 위로 드래그 → 전체화면 토글
                     ToggleFullscreen();
-                }
-                else
-                {
-                    // 아래로 드래그 → 전체화면 해제
-                    if (isFullscreen)
-                    {
-                        ExitFullscreen();
-                    }
-                }
+                else if (_fullscreenManager.IsFullscreen)
+                    ExitFullscreen();
             }
-            // 수평 이동 (가로 제스처)
             else if (Math.Abs(horizontalDrag) > GESTURE_THRESHOLD)
             {
                 if (horizontalDrag > 0)
-                {
-                    // 오른쪽으로 드래그 → 이전 페이지
-                    PrevButton_Click(null, null);
-                }
+                    _navigator.GoToPrev();
                 else
-                {
-                    // 왼쪽으로 드래그 → 다음 페이지
-                    NextButton_Click(null, null);
-                }
+                    _navigator.GoToNext();
             }
         }
 
+        /// <summary>
+        /// 마우스 휠 이벤트를 처리합니다.
+        /// </summary>
         private void MainWindow_MouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
-            // 휠 위로 스크롤 → 이전 페이지
             if (e.Delta > 0)
-            {
-                PrevButton_Click(null, null);
-            }
-            // 휠 아래로 스크롤 → 다음 페이지
+                _navigator.GoToPrev();
             else if (e.Delta < 0)
-            {
-                NextButton_Click(null, null);
-            }
+                _navigator.GoToNext();
             e.Handled = true;
         }
 
+        /// <summary>
+        /// "ZIP 파일 열기" 버튼 클릭 시 파일 선택 대화상자를 열고 선택한 ZIP 파일을 로드합니다.
+        /// </summary>
         private void OpenButton_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
@@ -169,291 +171,217 @@ namespace MangaMeeya_by_Jin
             }
         }
 
+        /// <summary>
+        /// ZIP 파일을 열고 이미지 파일들을 추출하여 표시합니다.
+        /// </summary>
         private void LoadZipFile(string zipPath, int? startPage = null)
         {
             try
             {
-                // 기존 임시 폴더 정리
-                if (!string.IsNullOrEmpty(tempExtractPath) && Directory.Exists(tempExtractPath))
-                {
-                    Directory.Delete(tempExtractPath, true);
-                }
-
-                currentZipPath = zipPath;
-                tempExtractPath = Path.Combine(Path.GetTempPath(), "MangaMeeya_" + Guid.NewGuid().ToString());
-                Directory.CreateDirectory(tempExtractPath);
-
-                // ZIP 파일 추출 (모든 이미지를 한 폴더에 평탄화)
-                using (ZipFile zipFile = new ZipFile(zipPath))
-                {
-                    int fileCounter = 0;
-                    foreach (ZipEntry entry in zipFile)
-                    {
-                        if (!entry.IsDirectory && IsImageFile(entry.Name))
-                        {
-                            // 파일명을 번호로 변경하여 경로 문제 해결
-                            string fileExtension = Path.GetExtension(entry.Name);
-                            string extractPath = Path.Combine(tempExtractPath, $"{fileCounter:D4}{fileExtension}");
-                            
-                            using (Stream zipStream = zipFile.GetInputStream(entry))
-                            using (FileStream fileStream = new FileStream(extractPath, FileMode.Create))
-                            {
-                                zipStream.CopyTo(fileStream);
-                            }
-                            fileCounter++;
-                        }
-                    }
-                }
-
-                // 이미지 파일 검색
-                imageFiles = Directory.GetFiles(tempExtractPath, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(f => IsImageFile(f))
-                    .OrderBy(f => f)
-                    .ToList();
-
-                // 시작 페이지 결정
-                int initialPage = 0;
-                if (startPage.HasValue && startPage.Value >= 0 && startPage.Value < imageFiles.Count)
-                {
-                    initialPage = startPage.Value;
-                }
-                currentImageIndex = initialPage;
-
-                if (imageFiles.Count > 0)
-                {
-                    DisplayImage(initialPage);
-                    UpdateUI();
-                    // MessageBox.Show($"{imageFiles.Count}개의 이미지를 로드했습니다.", "성공", 
-                    //     MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    // MessageBox.Show("ZIP 파일에 이미지가 없습니다.", "경고", 
-                    //     MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
+                _zipLoader.LoadZipFile(zipPath);
+                _navigator.Initialize(startPage);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"{LanguageManager.GetString("ErrorPrefix")}{ex.Message}", LanguageManager.GetString("ErrorTitle"), 
+                MessageBox.Show($"{LanguageManager.GetString("ErrorPrefix")}{ex.Message}", LanguageManager.GetString("ErrorTitle"),
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private bool IsImageFile(string filePath)
+        /// <summary>
+        /// 이미지가 표시될 때 UI를 업데이트하고 열람 기록을 저장합니다.
+        /// </summary>
+        private void OnImageDisplayed(int index)
         {
-            string[] imageExtensions = { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp" };
-            return imageExtensions.Contains(Path.GetExtension(filePath).ToLower());
+            // 열람 기록 저장
+            if (!string.IsNullOrEmpty(_zipLoader.CurrentZipPath) && _zipLoader.ImageCount > 0)
+            {
+                HistoryManager.RecordView(_zipLoader.CurrentZipPath, index, _zipLoader.ImageCount);
+            }
+
+            UpdateUI();
         }
 
-        private void DisplayImage(int index)
-        {
-            if (index < 0 || index >= imageFiles.Count)
-                return;
-
-            try
-            {
-                var bitmapImage = new BitmapImage();
-                bitmapImage.BeginInit();
-                bitmapImage.UriSource = new Uri(imageFiles[index], UriKind.Absolute);
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.EndInit();
-
-                MangaImage.Source = bitmapImage;
-                currentImageIndex = index;
-                // 열람 기록 저장
-                if (!string.IsNullOrEmpty(currentZipPath) && imageFiles.Count > 0)
-                {
-                    HistoryManager.RecordView(currentZipPath, currentImageIndex, imageFiles.Count);
-                }
-
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"{LanguageManager.GetString("ImageLoadFailed")}{ex.Message}", LanguageManager.GetString("ErrorTitle"), 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
+        /// <summary>
+        /// 페이지 레이블과 파일 레이블의 텍스트를 현재 상태에 맞게 업데이트합니다.
+        /// </summary>
         private void UpdateUI()
         {
-            if (PageLabel != null)
-                PageLabel.Text = $"{currentImageIndex + 1}/{imageFiles.Count}";
-            
-            if (FileLabel != null)
-            {
-                if (string.IsNullOrEmpty(currentZipPath))
-                {
-                    FileLabel.Text = LanguageManager.GetString("FileNone");
-                }
-                else
-                {
-                    FileLabel.Text = $"{LanguageManager.GetString("FilePrefix")}{Path.GetFileName(currentZipPath)}";
-                }
-            }
+            _uiManager.UpdatePageInfo(_navigator.CurrentIndex, _navigator.TotalImages, _zipLoader.CurrentZipPath);
         }
 
+        /// <summary>
+        /// "이전" 버튼 클릭 시 이전 페이지로 이동합니다.
+        /// </summary>
         private void PrevButton_Click(object sender, RoutedEventArgs e)
         {
-            if (currentImageIndex > 0)
-            {
-                DisplayImage(currentImageIndex - 1);
-            }
+            _navigator.GoToPrev();
         }
 
+        /// <summary>
+        /// "다음" 버튼 클릭 시 다음 페이지로 이동합니다.
+        /// </summary>
         private void NextButton_Click(object sender, RoutedEventArgs e)
         {
-            if (currentImageIndex < imageFiles.Count - 1)
-            {
-                DisplayImage(currentImageIndex + 1);
-            }
+            _navigator.GoToNext();
         }
 
+        /// <summary>
+        /// "전체화면" 버튼 클릭 시 전체화면 모드를 토글합니다.
+        /// </summary>
         private void FullscreenButton_Click(object sender, RoutedEventArgs e)
         {
             ToggleFullscreen();
         }
+
+        /// <summary>
+        /// "읽기 방향 전환" 버튼 클릭 시 LTR/RTL 읽기 방향을 전환합니다.
+        /// </summary>
+        private void DirectionToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleReadingDirection();
+        }
+
+        /// <summary>
+        /// 읽기 방향을 LTR과 RTL 사이에서 전환합니다.
+        /// </summary>
+        private void ToggleReadingDirection()
+        {
+            if (_readingDirection == "LTR")
+                _readingDirection = "RTL";
+            else
+                _readingDirection = "LTR";
+
+            // 이미지 네비게이터에도 읽기 방향 전달
+            _navigator.ReadingDirection = _readingDirection;
+
+            // 설정 저장
+            AppSettings settings = AppSettings.Load();
+            settings.ReadingDirection = _readingDirection;
+            settings.Save();
+
+            UpdateDirectionButtonText();
+        }
+
+        /// <summary>
+        /// 읽기 방향 버튼의 텍스트를 현재 방향에 맞게 업데이트합니다.
+        /// </summary>
+        private void UpdateDirectionButtonText()
+        {
+            if (DirectionToggleButton == null) return;
+            DirectionToggleButton.Content = _readingDirection == "LTR"
+                ? LanguageManager.GetString("ReadingDirectionLTR")
+                : LanguageManager.GetString("ReadingDirectionRTL");
+        }
+
+        /// <summary>
+        /// "기록" 버튼 클릭 시 HistoryWindow를 엽니다.
+        /// </summary>
         private void HistoryButton_Click(object sender, RoutedEventArgs e)
         {
             HistoryWindow historyWindow = new HistoryWindow();
             historyWindow.FileOpenRequested += (filePath, pageIndex) =>
             {
-                // 이미 열려있는 ZIP 파일과 다른 경우에만 로드
-                if (currentZipPath != filePath)
+                if (_zipLoader.CurrentZipPath != filePath)
                 {
                     LoadZipFile(filePath, pageIndex);
                 }
-                else if (pageIndex.HasValue && pageIndex.Value >= 0 && pageIndex.Value < imageFiles.Count)
+                else if (pageIndex.HasValue && pageIndex.Value >= 0 && pageIndex.Value < _zipLoader.ImageCount)
                 {
-                    // 같은 파일이면 해당 페이지로 이동
-                    DisplayImage(pageIndex.Value);
+                    _navigator.DisplayImage(pageIndex.Value);
                 }
             };
             historyWindow.ShowDialog();
         }
 
-
-
+        /// <summary>
+        /// 전체화면 모드를 토글합니다.
+        /// </summary>
         private void ToggleFullscreen()
         {
-            if (isFullscreen)
-            {
-                ExitFullscreen();
-            }
-            else
-            {
-                EnterFullscreen();
-            }
+            _fullscreenManager.Toggle();
+            UpdateFullscreenButtonText();
         }
 
-        private void EnterFullscreen()
-        {
-            isFullscreen = true;
-            
-            // 현재 상태 저장
-            previousWindowStyle = this.WindowStyle;
-            previousWindowState = this.WindowState;
-            previousHeight = this.Height;
-            previousWidth = this.Width;
-            previousTop = this.Top;
-            previousLeft = this.Left;
-            previousBottomPanelHeight = (this.Content as Grid).RowDefinitions[1].Height;
-
-            // 전체화면으로 설정
-            this.WindowStyle = WindowStyle.None;
-            this.WindowState = WindowState.Maximized;
-            
-            // 컨트롤 패널 숨기기
-            (this.Content as Grid).RowDefinitions[1].Height = new GridLength(0);
-            
-            // 버튼 텍스트 변경
-            FullscreenButton.Content = LanguageManager.GetString("FullscreenExit");
-        }
-
+        /// <summary>
+        /// 전체화면 모드를 해제합니다.
+        /// </summary>
         private void ExitFullscreen()
         {
-            isFullscreen = false;
-            
-            // 이전 상태 복원
-            this.WindowStyle = previousWindowStyle;
-            this.WindowState = previousWindowState;
-            this.Height = previousHeight;
-            this.Width = previousWidth;
-            this.Top = previousTop;
-            this.Left = previousLeft;
-            
-            // 컨트롤 패널 다시 보이기
-            (this.Content as Grid).RowDefinitions[1].Height = previousBottomPanelHeight;
-            
-            // 버튼 텍스트 변경
-            FullscreenButton.Content = LanguageManager.GetString("FullscreenEnter");
+            _fullscreenManager.Exit();
+            UpdateFullscreenButtonText();
         }
 
+        /// <summary>
+        /// 전체화면 버튼의 텍스트를 현재 상태에 맞게 업데이트합니다.
+        /// </summary>
+        private void UpdateFullscreenButtonText()
+        {
+            FullscreenButton.Content = _fullscreenManager.IsFullscreen
+                ? LanguageManager.GetString("FullscreenExit")
+                : LanguageManager.GetString("FullscreenEnter");
+        }
+
+        /// <summary>
+        /// 언어 선택 ComboBox의 선택이 변경될 때 호출됩니다.
+        /// </summary>
         private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (LanguageComboBox.SelectedItem is ComboBoxItem selectedItem)
             {
                 string tag = selectedItem.Tag?.ToString() ?? "ko";
                 LanguageManager.CurrentLanguage = tag;
-                
-                // UI 언어 적용
+
                 ApplyLanguage();
-                
-                // 설정 저장
+
                 AppSettings settings = AppSettings.Load();
                 settings.Language = tag;
                 settings.Save();
             }
         }
 
+        /// <summary>
+        /// 현재 LanguageManager에 설정된 언어로 UI 텍스트를 업데이트합니다.
+        /// </summary>
         private void ApplyLanguage()
         {
             this.Title = LanguageManager.GetString("Title");
             OpenButton.Content = LanguageManager.GetString("OpenButton");
             PrevButton.Content = LanguageManager.GetString("PrevButton");
             NextButton.Content = LanguageManager.GetString("NextButton");
-            FullscreenButton.Content = isFullscreen ? LanguageManager.GetString("FullscreenExit") : LanguageManager.GetString("FullscreenEnter");
-            
+            FullscreenButton.Content = _fullscreenManager.IsFullscreen
+                ? LanguageManager.GetString("FullscreenExit")
+                : LanguageManager.GetString("FullscreenEnter");
             HistoryButton.Content = LanguageManager.GetString("HistoryButton");
 
-            // 파일 정보 표시 업데이트
+            UpdateDirectionButtonText();
+            _uiManager.UpdateGestureTexts();
             UpdateUI();
-            
-            // 마우스 제스처 설명서 번역
-            if (GestureWheelText != null)
-                GestureWheelText.Text = LanguageManager.GetString("GestureWheel");
-            if (GestureUpText != null)
-                GestureUpText.Text = LanguageManager.GetString("GestureUp");
-            if (GestureDownText != null)
-                GestureDownText.Text = LanguageManager.GetString("GestureDown");
         }
 
+        /// <summary>
+        /// 윈도우가 닫힐 때 호출됩니다.
+        /// </summary>
         protected override void OnClosed(EventArgs e)
         {
             // 현재 ZIP 파일 경로 저장
-            if (!string.IsNullOrEmpty(currentZipPath))
+            if (!string.IsNullOrEmpty(_zipLoader.CurrentZipPath))
             {
                 AppSettings settings = AppSettings.Load();
-                settings.LastZipFilePath = currentZipPath;
+                settings.LastZipFilePath = _zipLoader.CurrentZipPath;
                 settings.LastModified = DateTime.Now;
                 settings.Save();
             }
 
             // 마지막 열람 기록 저장
-            if (!string.IsNullOrEmpty(currentZipPath) && imageFiles.Count > 0)
+            if (!string.IsNullOrEmpty(_zipLoader.CurrentZipPath) && _zipLoader.ImageCount > 0)
             {
-                HistoryManager.RecordView(currentZipPath, currentImageIndex, imageFiles.Count);
+                HistoryManager.RecordView(_zipLoader.CurrentZipPath, _navigator.CurrentIndex, _zipLoader.ImageCount);
             }
 
-            // 임시 폴더 정리
-            if (!string.IsNullOrEmpty(tempExtractPath) && Directory.Exists(tempExtractPath))
-            {
-                try
-                {
-                    Directory.Delete(tempExtractPath, true);
-                }
-                catch { }
-            }
+            // ZIP 파일 핸들 정리
+            _zipLoader.Cleanup();
+
             base.OnClosed(e);
         }
     }
